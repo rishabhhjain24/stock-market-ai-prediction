@@ -8,9 +8,20 @@ import numpy as np
 import yfinance as yf
 from datetime import datetime, time
 import pytz
+import logging
+import time as time_module
 
-from trading_forecast_engine import TradingForecastEngine
-from news_sentiment_unified import analyze_news_sentiment, get_latest_news
+# Setup logging for debugging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+try:
+    from trading_forecast_engine import TradingForecastEngine
+    from news_sentiment_unified import analyze_news_sentiment, get_latest_news
+except Exception as e:
+    logger.error(f"Import error: {e}")
+    st.error(f"Module import failed: {e}")
+    st.stop()
 
 st.set_page_config(page_title="🎯 AI Trading Forecast", layout="wide", initial_sidebar_state="expanded")
 
@@ -37,46 +48,75 @@ st.markdown("""
 
 @st.cache_resource
 def get_forecast_engine():
-    return TradingForecastEngine()
+    try:
+        return TradingForecastEngine()
+    except Exception as e:
+        logger.error(f"Failed to initialize forecast engine: {e}")
+        return None
+
+def fetch_with_retry(symbol, period="5d", interval="1d", max_retries=3):
+    """Fetch data with retry logic"""
+    for attempt in range(max_retries):
+        try:
+            data = yf.download(symbol, period=period, interval=interval, progress=False)
+            if data is not None and not data.empty and data.shape[0] >= 2:
+                return data
+        except Exception as e:
+            logger.warning(f"Attempt {attempt+1} failed for {symbol}: {e}")
+            if attempt < max_retries - 1:
+                time_module.sleep(1)  # Wait before retry
+    return None
 
 def validate_market_hours():
     """Check if market is currently open"""
-    tz = pytz.timezone('Asia/Kolkata')
-    now = datetime.now(tz)
-    market_open = time(9, 15)
-    market_close = time(15, 30)
-    is_weekday = now.weekday() < 5
-    return is_weekday and market_open <= now.time() < market_close, now
-
-def get_global_market_sentiment():
-    """Fetch global market context"""
     try:
-        sp500 = yf.download("^GSPC", period="5d", interval="1d", progress=False)
-        dow = yf.download("^DJI", period="5d", interval="1d", progress=False)
-        nifty = yf.download("^NSEI", period="5d", interval="1d", progress=False)
-        sensex = yf.download("^BSESN", period="5d", interval="1d", progress=False)
-        
-        if sp500 is None or sp500.empty or sp500.shape[0] < 2:
-            return None
-        
-        return {
-            'sp500_change': float((sp500['Close'].iloc[-1] - sp500['Close'].iloc[-2]) / sp500['Close'].iloc[-2] * 100),
-            'dow_change': float((dow['Close'].iloc[-1] - dow['Close'].iloc[-2]) / dow['Close'].iloc[-2] * 100),
-            'nifty_change': float((nifty['Close'].iloc[-1] - nifty['Close'].iloc[-2]) / nifty['Close'].iloc[-2] * 100),
-            'sensex_change': float((sensex['Close'].iloc[-1] - sensex['Close'].iloc[-2]) / sensex['Close'].iloc[-2] * 100),
+        tz = pytz.timezone('Asia/Kolkata')
+        now = datetime.now(tz)
+        market_open = time(9, 15)
+        market_close = time(15, 30)
+        is_weekday = now.weekday() < 5
+        return is_weekday and market_open <= now.time() < market_close, now
+    except Exception as e:
+        logger.error(f"Market validation error: {e}")
+        return False, datetime.now()
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def get_global_market_sentiment():
+    """Fetch global market context with retry"""
+    try:
+        indices = {
+            '^GSPC': 'S&P 500',
+            '^DJI': 'Dow Jones',
+            '^NSEI': 'Nifty 50',
+            '^BSESN': 'Sensex'
         }
-    except:
+        
+        results = {}
+        for ticker, name in indices.items():
+            try:
+                data = fetch_with_retry(ticker, period="5d", interval="1d")
+                if data is not None and data.shape[0] >= 2:
+                    change = float((data['Close'].iloc[-1] - data['Close'].iloc[-2]) / data['Close'].iloc[-2] * 100)
+                    results[f'{name}_change'] = round(change, 2)
+            except Exception as e:
+                logger.warning(f"Failed to fetch {name}: {e}")
+        
+        return results if results else None
+    except Exception as e:
+        logger.error(f"Global market sentiment error: {e}")
         return None
 
+@st.cache_data(ttl=300)
 def get_multitimeframe_data(symbol: str) -> dict:
     """Fetch multi-timeframe data"""
     try:
-        intraday_1h = yf.download(symbol, period="7d", interval="1h", progress=False)
-        daily = yf.download(symbol, period="1y", interval="1d", progress=False)
-        if intraday_1h is not None and daily is not None and not intraday_1h.empty and not daily.empty:
+        intraday_1h = fetch_with_retry(symbol, period="7d", interval="1h")
+        daily = fetch_with_retry(symbol, period="1y", interval="1d")
+        if intraday_1h is not None and daily is not None:
             return {"1h": intraday_1h, "daily": daily}
         return None
-    except:
+    except Exception as e:
+        logger.error(f"Multi-timeframe data error: {e}")
         return None
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -106,32 +146,41 @@ st.divider()
 # Global Market Sentiment
 st.markdown("### 🌍 Global Market Context")
 
-global_sentiment = get_global_market_sentiment()
+try:
+    global_sentiment = get_global_market_sentiment()
 
-if global_sentiment is not None:
-    g_col1, g_col2, g_col3, g_col4 = st.columns(4)
-    
-    with g_col1:
-        sp_color = "🟢" if global_sentiment['sp500_change'] > 0 else "🔴"
-        st.metric(f"{sp_color} S&P 500", f"{global_sentiment['sp500_change']:+.2f}%")
-    
-    with g_col2:
-        dow_color = "🟢" if global_sentiment['dow_change'] > 0 else "🔴"
-        st.metric(f"{dow_color} Dow Jones", f"{global_sentiment['dow_change']:+.2f}%")
-    
-    with g_col3:
-        nifty_color = "🟢" if global_sentiment['nifty_change'] > 0 else "🔴"
-        st.metric(f"{nifty_color} Nifty 50", f"{global_sentiment['nifty_change']:+.2f}%")
-    
-    with g_col4:
-        sensex_color = "🟢" if global_sentiment['sensex_change'] > 0 else "🔴"
-        st.metric(f"{sensex_color} Sensex 30", f"{global_sentiment['sensex_change']:+.2f}%")
-    
-    st.info(f"""
-**Impact Analysis:** US {"Bullish 📈" if global_sentiment['sp500_change'] > 0 else "Bearish 📉"} → Nifty {"Strong ✅" if abs(global_sentiment['nifty_change']) > 1 else "Stable"} | Best for: {"LONGS 📈" if global_sentiment['nifty_change'] > 0 else "SHORTS 📉"}
-    """)
-else:
-    st.warning("Global market data temporarily unavailable")
+    if global_sentiment is not None and len(global_sentiment) >= 2:
+        g_col1, g_col2, g_col3, g_col4 = st.columns(4)
+        
+        sp500_val = global_sentiment.get('S&P 500_change', 0)
+        dow_val = global_sentiment.get('Dow Jones_change', 0)
+        nifty_val = global_sentiment.get('Nifty 50_change', 0)
+        sensex_val = global_sentiment.get('Sensex_change', 0)
+        
+        with g_col1:
+            sp_color = "🟢" if sp500_val > 0 else "🔴"
+            st.metric(f"{sp_color} S&P 500", f"{sp500_val:+.2f}%")
+        
+        with g_col2:
+            dow_color = "🟢" if dow_val > 0 else "🔴"
+            st.metric(f"{dow_color} Dow Jones", f"{dow_val:+.2f}%")
+        
+        with g_col3:
+            nifty_color = "🟢" if nifty_val > 0 else "🔴"
+            st.metric(f"{nifty_color} Nifty 50", f"{nifty_val:+.2f}%")
+        
+        with g_col4:
+            sensex_color = "🟢" if sensex_val > 0 else "🔴"
+            st.metric(f"{sensex_color} Sensex 30", f"{sensex_val:+.2f}%")
+        
+        st.info(f"""
+**Impact Analysis:** US {"Bullish 📈" if sp500_val > 0 else "Bearish 📉"} → Nifty {"Strong ✅" if abs(nifty_val) > 1 else "Stable"} | Best for: {"LONGS 📈" if nifty_val > 0 else "SHORTS 📉"}
+        """)
+    else:
+        st.warning("⏳ Global market data loading... (checking market feeds)")
+except Exception as e:
+    logger.error(f"Global sentiment display error: {e}")
+    st.warning(f"⏳ Market data temporarily unavailable (retrying...)")
 
 st.divider()
 
@@ -149,16 +198,36 @@ if 'analyze' in st.session_state and st.session_state.analyze:
     with st.spinner(f"🔄 Generating comprehensive forecast for {symbol}..."):
         forecast_engine = get_forecast_engine()
         
+        if forecast_engine is None:
+            st.error("❌ Forecast engine failed to initialize. Please refresh the page.")
+            st.stop()
+        
         try:
+            # Fetch data with retry logic
             mtf_data = get_multitimeframe_data(symbol)
-            if mtf_data is None or '1h' not in mtf_data or 'daily' not in mtf_data:
-                st.error(f"❌ Could not fetch data for {symbol}")
-                st.stop()
             
+            if mtf_data is None or 'daily' not in mtf_data:
+                st.warning(f"⏳ Fetching data for {symbol} (sometimes takes time on first load)...")
+                
+                # Try direct fetch as fallback
+                try:
+                    daily_data = fetch_with_retry(symbol, period="250d", interval="1d")
+                    if daily_data is None or daily_data.empty:
+                        st.error(f"❌ Cannot fetch data for {symbol}. Verify the symbol exists (e.g., RELIANCE.NS for NSE stocks)")
+                        st.info("💡 For NSE stocks, use format: SYMBOL.NS (e.g., TCS.NS, INFY.NS)")
+                        st.stop()
+                    mtf_data = {"daily": daily_data}
+                except Exception as e:
+                    logger.error(f"Data fetch error: {e}")
+                    st.error(f"❌ Data fetch failed: {str(e)[:100]}")
+                    st.stop()
+            
+            # Generate forecast
             forecast = forecast_engine.generate_forecast(symbol, mtf_data['daily'])
             
             if forecast is None:
-                st.error(f"❌ Could not generate forecast for {symbol}")
+                st.warning(f"⚠️ Forecast generation returned None for {symbol}")
+                st.info("💡 Try a different stock symbol or check if there's enough historical data")
                 st.stop()
             
             # Main Signal
@@ -178,6 +247,11 @@ if 'analyze' in st.session_state and st.session_state.analyze:
             with col_rec:
                 st.markdown(rec_html, unsafe_allow_html=True)
                 st.caption("Recommendation")
+        
+        except Exception as e:
+            logger.error(f"Forecast generation error: {e}", exc_info=True)
+            st.error(f"❌ Error generating forecast: {str(e)[:200]}")
+            st.warning("Try refreshing the page or selecting a different stock")
             
             with col_conf:
                 conf_percent = int(forecast.forecast_confidence * 100)

@@ -12,6 +12,7 @@ ENV/
 
 # Streamlit
 .streamlit/
+.streamlit/secrets.toml
 
 # VS Code
 .vscode/
@@ -24,6 +25,8 @@ ENV/
 
 # Secrets
 .env
+.env.local
+secrets.toml
 
 # OS files
 .DS_Store

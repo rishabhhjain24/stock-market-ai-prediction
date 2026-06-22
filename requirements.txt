@@ -4,13 +4,15 @@
 streamlit>=1.32.0                    # Web dashboard
 pandas>=2.0.0                        # Data manipulation
 numpy>=1.26.0                        # Numerical computing
-yfinance>=0.2.38                     # Market data fetching
+yfinance>=0.2.40                     # Market data fetching (updated)
+requests>=2.31.0                     # HTTP requests with better timeout handling
 
 # ════════════════════════════════════════════════════════════════════════════════
 # TECHNICAL ANALYSIS
 # ════════════════════════════════════════════════════════════════════════════════
 ta>=0.11.0                           # Technical analysis indicators (EMA, RSI, MACD, etc)
 mplfinance>=0.12.10b0                # Candlestick charts
+plotly>=5.20.0                       # Interactive charts (dashboard)
 
 # ════════════════════════════════════════════════════════════════════════════════
 # MACHINE LEARNING & AI
@@ -18,6 +20,7 @@ mplfinance>=0.12.10b0                # Candlestick charts
 scikit-learn>=1.4.0                  # ML models (GradientBoosting, StandardScaler)
 xgboost>=2.0.0                       # XGBoost for ensemble models
 shap>=0.45.0                         # Model explainability
+joblib>=1.3.0                        # Caching and model persistence
 
 # ════════════════════════════════════════════════════════════════════════════════
 # SENTIMENT ANALYSIS & NLP (FREE MODELS - NO API KEYS)
@@ -30,18 +33,19 @@ feedparser>=6.0.10                   # Parse RSS feeds (free news sources)
 # ════════════════════════════════════════════════════════════════════════════════
 # API & EXTERNAL SERVICES
 # ════════════════════════════════════════════════════════════════════════════════
-requests>=2.31.0                     # HTTP requests
 python-dotenv>=1.0.0                 # .env file support
 openai>=1.30.0                       # Gemini API integration
+google-generativeai>=0.3.0           # Better Gemini support
 newsapi-python>=0.2.7                # News API
 
 # ════════════════════════════════════════════════════════════════════════════════
 # VISUALIZATION
 # ════════════════════════════════════════════════════════════════════════════════
 matplotlib>=3.8.0                    # Basic plotting
-plotly>=5.20.0                       # Interactive charts (dashboard)
+altair>=5.0.0                        # Streamlit charting
 
 # ════════════════════════════════════════════════════════════════════════════════
 # DATABASE & PERSISTENCE
 # ════════════════════════════════════════════════════════════════════════════════
-sqlalchemy>=2.0.0                    # ORM for database (optional upgrade from sqlite3)
+sqlalchemy>=2.0.0                    # ORM for database
+python-dateutil>=2.8.2               # Date utilities
