@@ -1,0 +1,46 @@
+# ════════════════════════════════════════════════════════════════════════════════
+# CORE DATA & ANALYSIS
+# ════════════════════════════════════════════════════════════════════════════════
+streamlit>=1.32.0                    # Web dashboard
+pandas>=2.0.0                        # Data manipulation
+numpy>=1.26.0                        # Numerical computing
+yfinance>=0.2.38                     # Market data fetching
+
+# ════════════════════════════════════════════════════════════════════════════════
+# TECHNICAL ANALYSIS
+# ════════════════════════════════════════════════════════════════════════════════
+ta>=0.11.0                           # Technical analysis indicators (EMA, RSI, MACD, etc)
+mplfinance>=0.12.10b0                # Candlestick charts
+
+# ════════════════════════════════════════════════════════════════════════════════
+# MACHINE LEARNING & AI
+# ════════════════════════════════════════════════════════════════════════════════
+scikit-learn>=1.4.0                  # ML models (GradientBoosting, StandardScaler)
+xgboost>=2.0.0                       # XGBoost for ensemble models
+shap>=0.45.0                         # Model explainability
+
+# ════════════════════════════════════════════════════════════════════════════════
+# SENTIMENT ANALYSIS
+# ════════════════════════════════════════════════════════════════════════════════
+textblob>=0.17.1                     # Sentiment analysis (fast, no API key needed)
+# transformers                        # For FinBERT (optional, uncomment to enable)
+# torch                               # For FinBERT (optional)
+
+# ════════════════════════════════════════════════════════════════════════════════
+# API & EXTERNAL SERVICES
+# ════════════════════════════════════════════════════════════════════════════════
+requests>=2.31.0                     # HTTP requests
+python-dotenv>=1.0.0                 # .env file support
+openai>=1.30.0                       # Gemini API integration
+newsapi-python>=0.2.7                # News API
+
+# ════════════════════════════════════════════════════════════════════════════════
+# VISUALIZATION
+# ════════════════════════════════════════════════════════════════════════════════
+matplotlib>=3.8.0                    # Basic plotting
+plotly>=5.20.0                       # Interactive charts (dashboard)
+
+# ════════════════════════════════════════════════════════════════════════════════
+# DATABASE & PERSISTENCE
+# ════════════════════════════════════════════════════════════════════════════════
+sqlalchemy>=2.0.0                    # ORM for database (optional upgrade from sqlite3)

@@ -1,0 +1,49 @@
+# ════════════════════════════════════════════════════════════════════════════════
+# GITHUB ACTIONS - CI/CD PIPELINE
+# Automated testing & deployment to Heroku on push
+# ════════════════════════════════════════════════════════════════════════════════
+
+name: Deploy to Heroku
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Docker
+      uses: docker/setup-buildx-action@v2
+    
+    - name: Build Docker image
+      run: docker build -t trading-app:latest .
+    
+    - name: Login to Heroku
+      env:
+        HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+      run: |
+        echo $HEROKU_API_KEY | docker login --username=_ --password-stdin registry.heroku.com
+    
+    - name: Push to Heroku
+      env:
+        HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
+      run: |
+        docker tag trading-app:latest registry.heroku.com/$HEROKU_APP_NAME/web:latest
+        docker push registry.heroku.com/$HEROKU_APP_NAME/web:latest
+    
+    - name: Release on Heroku
+      env:
+        HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+        HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
+      run: |
+        curl -X PATCH https://api.heroku.com/apps/$HEROKU_APP_NAME/formation \
+          -d '{"updates":[{"type":"web","quantity":1,"size":"standard-1x"}]}' \
+          -H "Content-Type: application/json" \
+          -H "Accept: application/vnd.heroku+json; version=3" \
+          -H "Authorization: Bearer $HEROKU_API_KEY"
